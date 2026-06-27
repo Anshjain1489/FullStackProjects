@@ -1,0 +1,30 @@
+# Maven build output
+target/
+
+# Frontend build output
+hms-frontend/node_modules/
+hms-frontend/dist/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/
+
+# Environment secrets
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+src/test/

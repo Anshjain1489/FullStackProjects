@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Render Blueprint — Apex Hospital Management System
+#  Deploys:
+#    1. apex-hms-backend  — Spring Boot (Docker)
+#    2. apex-hms-frontend — React/Vite (Static Site)
+#
+#  Docs: https://render.com/docs/blueprint-spec
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Spring Boot Backend (Docker) ─────────────────────────────────────────
+  - type: web
+    name: apex-hms-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore          # Change to: oregon, ohio, frankfurt, virginia
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_URL
+        sync: false            # Set manually in Render dashboard
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false            # Set to your Render static site URL
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JWT_EXPIRATION
+        value: "86400000"
+
+  # ── React Vite Frontend (Static Site) ───────────────────────────────────
+  - type: web
+    name: apex-hms-frontend
+    env: static
+    rootDir: hms-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    region: singapore
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false            # Set to your backend Render URL
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
