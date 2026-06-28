@@ -1,9 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Render Blueprint — Apex Hospital Management System
 #  Deploys:
-#    1. apex-hms-backend  — Spring Boot (Docker)
-#    2. apex-hms-frontend — React/Vite (Static Site)
+#    1. apex-hms-backend  — Spring Boot (Docker Web Service)
 #
+#  Frontend is deployed separately on Vercel (hms-frontend/)
 #  Docs: https://render.com/docs/blueprint-spec
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -19,33 +19,16 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: DB_URL
-        sync: false            # Set manually in Render dashboard
+        sync: false            # jdbc:mysql://HOST:PORT/defaultdb?useSSL=true&...
       - key: DB_USERNAME
-        sync: false
+        sync: false            # avnadmin
       - key: DB_PASSWORD
-        sync: false
+        sync: false            # Your Aiven password
       - key: JWT_SECRET
-        sync: false
+        sync: false            # Base64 encoded secret
       - key: FRONTEND_URL
-        sync: false            # Set to your Render static site URL
+        sync: false            # Set to your Vercel URL: https://your-app.vercel.app
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: JWT_EXPIRATION
         value: "86400000"
-
-  # ── React Vite Frontend (Static Site) ───────────────────────────────────
-  - type: web
-    name: apex-hms-frontend
-    env: static
-    rootDir: hms-frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    plan: free
-    region: singapore
-    envVars:
-      - key: VITE_API_BASE_URL
-        sync: false            # Set to your backend Render URL
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
