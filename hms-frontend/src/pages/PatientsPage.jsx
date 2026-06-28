@@ -5,7 +5,7 @@ import { patientService } from '../services/patientService';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const EMPTY = { firstName:'', lastName:'', email:'', phone:'', dateOfBirth:'', gender:'MALE', bloodGroup:'O_POSITIVE', address:'' };
+const EMPTY = { firstName:'', lastName:'', email:'', phone:'', dateOfBirth:'', gender:'MALE', bloodGroup:'O_POSITIVE', address:'', emergencyContact:'', emergencyContactName:'' };
 const GENDERS = ['MALE','FEMALE','OTHER'];
 const BLOOD_GROUPS = ['A_POSITIVE','A_NEGATIVE','B_POSITIVE','B_NEGATIVE','O_POSITIVE','O_NEGATIVE','AB_POSITIVE','AB_NEGATIVE'];
 const fmt = s => s?.replace('_',' ') ?? '—';
@@ -48,7 +48,7 @@ export default function PatientsPage() {
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async () => {
-    if (!form.firstName || !form.lastName || !form.email) { toast.error('First name, last name and email are required'); return; }
+    if (!form.firstName || !form.lastName || !form.phone || !form.dateOfBirth) { toast.error('First name, last name, phone and date of birth are required'); return; }
     setSaving(true);
     try {
       if (modal.mode === 'add') await patientService.create(form);
@@ -75,16 +75,20 @@ export default function PatientsPage() {
         <div className="form-group"><label className="form-label">Last Name *</label><input className="form-control" name="lastName" value={form.lastName} onChange={handleChange} placeholder="Doe" /></div>
       </div>
       <div className="form-row">
-        <div className="form-group"><label className="form-label">Email *</label><input className="form-control" type="email" name="email" value={form.email} onChange={handleChange} placeholder="patient@email.com" /></div>
-        <div className="form-group"><label className="form-label">Phone</label><input className="form-control" name="phone" value={form.phone} onChange={handleChange} placeholder="+91 9876543210" /></div>
+        <div className="form-group"><label className="form-label">Phone *</label><input className="form-control" name="phone" value={form.phone} onChange={handleChange} placeholder="+91 9876543210" /></div>
+        <div className="form-group"><label className="form-label">Email</label><input className="form-control" type="email" name="email" value={form.email} onChange={handleChange} placeholder="patient@email.com" /></div>
       </div>
       <div className="form-row">
-        <div className="form-group"><label className="form-label">Date of Birth</label><input className="form-control" type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={handleChange} /></div>
-        <div className="form-group"><label className="form-label">Gender</label><select className="form-control" name="gender" value={form.gender} onChange={handleChange}>{GENDERS.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+        <div className="form-group"><label className="form-label">Date of Birth *</label><input className="form-control" type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={handleChange} /></div>
+        <div className="form-group"><label className="form-label">Gender *</label><select className="form-control" name="gender" value={form.gender} onChange={handleChange}>{GENDERS.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
       </div>
       <div className="form-row">
         <div className="form-group"><label className="form-label">Blood Group</label><select className="form-control" name="bloodGroup" value={form.bloodGroup} onChange={handleChange}>{BLOOD_GROUPS.map(b => <option key={b} value={b}>{fmt(b)}</option>)}</select></div>
         <div className="form-group"><label className="form-label">Address</label><input className="form-control" name="address" value={form.address} onChange={handleChange} placeholder="123 Main St" /></div>
+      </div>
+      <div className="form-row">
+        <div className="form-group"><label className="form-label">Emergency Contact</label><input className="form-control" name="emergencyContactName" value={form.emergencyContactName} onChange={handleChange} placeholder="Jane Doe" /></div>
+        <div className="form-group"><label className="form-label">Emergency Phone</label><input className="form-control" name="emergencyContact" value={form.emergencyContact} onChange={handleChange} placeholder="+91 9876543210" /></div>
       </div>
     </>
   );

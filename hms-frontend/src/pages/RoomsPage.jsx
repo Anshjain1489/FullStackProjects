@@ -5,9 +5,9 @@ import { roomService } from '../services/roomService';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const ROOM_TYPES   = ['GENERAL','PRIVATE','ICU','EMERGENCY','OPERATION_THEATER','CONSULTATION'];
-const ROOM_STATUSES= ['AVAILABLE','OCCUPIED','UNDER_MAINTENANCE','RESERVED'];
-const EMPTY = { roomNumber:'', type:'GENERAL', status:'AVAILABLE', capacity:1, pricePerDay:'' };
+const ROOM_TYPES   = ['GENERAL','PRIVATE','SEMI_PRIVATE','ICU','EMERGENCY','OPERATION_THEATRE','LABOR','PEDIATRIC'];
+const ROOM_STATUSES= ['AVAILABLE','OCCUPIED','MAINTENANCE','RESERVED'];
+const EMPTY = { roomNumber:'', roomType:'GENERAL', status:'AVAILABLE', floor:'', pricePerDay:'' };
 
 const statusBadge = (s) => {
   const map = { AVAILABLE:'badge-success', OCCUPIED:'badge-danger', UNDER_MAINTENANCE:'badge-warning', RESERVED:'badge-info' };
@@ -42,7 +42,7 @@ export default function RoomsPage() {
   }, [search, rooms]);
 
   const openAdd  = () => { setForm(EMPTY); setModal({ open:true, mode:'add', data:null }); };
-  const openEdit = (r) => { setForm({ roomNumber:r.roomNumber, type:r.type, status:r.status, capacity:r.capacity??1, pricePerDay:r.pricePerDay??'' }); setModal({ open:true, mode:'edit', data:r }); };
+  const openEdit = (r) => { setForm({ roomNumber:r.roomNumber, roomType:r.roomType, status:r.status, floor:r.floor??'', pricePerDay:r.pricePerDay??'' }); setModal({ open:true, mode:'edit', data:r }); };
   const closeModal = () => setModal({ open:false, mode:'add', data:null });
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -50,7 +50,7 @@ export default function RoomsPage() {
     if (!form.roomNumber.trim()) { toast.error('Room number is required'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, capacity: Number(form.capacity), pricePerDay: form.pricePerDay ? Number(form.pricePerDay) : null };
+      const payload = { roomNumber: form.roomNumber, roomType: form.roomType, status: form.status, floor: form.floor ? Number(form.floor) : null, pricePerDay: form.pricePerDay ? Number(form.pricePerDay) : null };
       if (modal.mode==='add') await roomService.create(payload);
       else await roomService.update(modal.data.id, payload);
       toast.success(`Room ${modal.mode==='add'?'added':'updated'}!`);
@@ -89,7 +89,7 @@ export default function RoomsPage() {
               <tr key={r.id}>
                 <td className="td-muted">{i+1}</td>
                 <td><strong>{r.roomNumber}</strong></td>
-                <td>{r.type?.replace('_',' ')}</td>
+                <td>{r.roomType?.replace('_',' ')}</td>
                 <td><span className={`badge ${statusBadge(r.status)}`}>{r.status?.replace('_',' ')}</span></td>
                 <td>{r.capacity ?? 1}</td>
                 <td>{r.pricePerDay ? `₹${Number(r.pricePerDay).toLocaleString('en-IN')}` : '—'}</td>
@@ -107,11 +107,11 @@ export default function RoomsPage() {
         footer={<><button className="btn btn-secondary" onClick={closeModal}>Cancel</button><button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>{saving?<><span className="spinner"/>Saving…</>:'Save'}</button></>}>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Room Number *</label><input className="form-control" name="roomNumber" value={form.roomNumber} onChange={handleChange} placeholder="e.g. A-101" autoFocus/></div>
-          <div className="form-group"><label className="form-label">Type</label><select className="form-control" name="type" value={form.type} onChange={handleChange}>{ROOM_TYPES.map(t=><option key={t} value={t}>{t.replace('_',' ')}</option>)}</select></div>
+          <div className="form-group"><label className="form-label">Type</label><select className="form-control" name="roomType" value={form.roomType} onChange={handleChange}>{ROOM_TYPES.map(t=><option key={t} value={t}>{t.replace('_',' ')}</option>)}</select></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Status</label><select className="form-control" name="status" value={form.status} onChange={handleChange}>{ROOM_STATUSES.map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Capacity</label><input className="form-control" type="number" name="capacity" value={form.capacity} onChange={handleChange} min={1}/></div>
+          <div className="form-group"><label className="form-label">Floor</label><input className="form-control" type="number" name="floor" value={form.floor} onChange={handleChange} min={0} placeholder="e.g. 2"/></div>
         </div>
         <div className="form-group"><label className="form-label">Price Per Day (₹)</label><input className="form-control" type="number" name="pricePerDay" value={form.pricePerDay} onChange={handleChange} placeholder="e.g. 2500"/></div>
       </Modal>

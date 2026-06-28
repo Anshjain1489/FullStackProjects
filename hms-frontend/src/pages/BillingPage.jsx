@@ -6,13 +6,18 @@ import { patientService } from '../services/patientService';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PAY_STATUSES = ['PENDING','PAID','PARTIALLY_PAID','CANCELLED'];
-const EMPTY = { patientId:'', totalAmount:'', description:'', paymentStatus:'PENDING', invoiceDate:'' };
+const PAY_STATUSES = ['PENDING','PAID','PARTIAL','OVERDUE','CANCELLED','REFUNDED'];
+const EMPTY = {
+  patientId:'', consultationFee:'', roomCharges:'', medicationCharges:'',
+  otherCharges:'', paymentStatus:'PENDING', paymentDate:'', paymentMethod:'', notes:''
+};
 
 const payBadge = (s) => {
-  const map = { PAID:'badge-success', PENDING:'badge-warning', PARTIALLY_PAID:'badge-info', CANCELLED:'badge-danger' };
+  const map = { PAID:'badge-success', PENDING:'badge-warning', PARTIAL:'badge-info', OVERDUE:'badge-danger', CANCELLED:'badge-danger', REFUNDED:'badge-muted' };
   return map[s] || 'badge-muted';
 };
+
+const toNum = (v) => v !== '' && v !== null && v !== undefined ? Number(v) : null;
 
 export default function BillingPage() {
   const [bills, setBills]       = useState([]);
@@ -40,25 +45,45 @@ export default function BillingPage() {
   useEffect(() => {
     const q = search.toLowerCase();
     setFiltered(bills.filter(b =>
-      `${b.patient?.firstName} ${b.patient?.lastName}`.toLowerCase().includes(q) ||
-      b.description?.toLowerCase().includes(q) ||
+      b.patientName?.toLowerCase().includes(q) ||
+      b.invoiceNumber?.toLowerCase().includes(q) ||
       b.paymentStatus?.toLowerCase().includes(q)
     ));
   }, [search, bills]);
 
-  const openAdd  = () => { setForm({ ...EMPTY, invoiceDate: new Date().toISOString().split('T')[0] }); setModal({ open:true, mode:'add', data:null }); };
+  const openAdd  = () => { setForm({ ...EMPTY, paymentDate: new Date().toISOString().split('T')[0] }); setModal({ open:true, mode:'add', data:null }); };
   const openEdit = (b) => {
-    setForm({ patientId: b.patient?.id??'', totalAmount: b.totalAmount??'', description: b.description??'', paymentStatus: b.paymentStatus??'PENDING', invoiceDate: b.invoiceDate?.split('T')[0]??'' });
+    setForm({
+      patientId: b.patientId ?? '',
+      consultationFee: b.consultationFee ?? '',
+      roomCharges: b.roomCharges ?? '',
+      medicationCharges: b.medicationCharges ?? '',
+      otherCharges: b.otherCharges ?? '',
+      paymentStatus: b.paymentStatus ?? 'PENDING',
+      paymentDate: b.paymentDate?.split('T')[0] ?? '',
+      paymentMethod: b.paymentMethod ?? '',
+      notes: b.notes ?? '',
+    });
     setModal({ open:true, mode:'edit', data:b });
   };
   const closeModal = () => setModal({ open:false, mode:'add', data:null });
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async () => {
-    if (!form.patientId || !form.totalAmount) { toast.error('Patient and amount are required'); return; }
+    if (!form.patientId) { toast.error('Patient is required'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, patientId: Number(form.patientId), totalAmount: Number(form.totalAmount) };
+      const payload = {
+        patientId: Number(form.patientId),
+        consultationFee: toNum(form.consultationFee),
+        roomCharges: toNum(form.roomCharges),
+        medicationCharges: toNum(form.medicationCharges),
+        otherCharges: toNum(form.otherCharges),
+        paymentStatus: form.paymentStatus,
+        paymentDate: form.paymentDate || null,
+        paymentMethod: form.paymentMethod || null,
+        notes: form.notes || null,
+      };
       if (modal.mode==='add') await billingService.create(payload);
       else await billingService.update(modal.data.id, payload);
       toast.success(`Invoice ${modal.mode==='add'?'created':'updated'}!`);
@@ -73,14 +98,14 @@ export default function BillingPage() {
   };
 
   const totalRevenue = bills.filter(b => b.paymentStatus==='PAID').reduce((s,b) => s+(b.totalAmount||0), 0);
-  const pending = bills.filter(b => b.paymentStatus==='PENDING').reduce((s,b) => s+(b.totalAmount||0), 0);
+  const pending = bills.filter(b => b.paymentStatus==='PENDING' || b.paymentStatus==='OVERDUE').reduce((s,b) => s+(b.totalAmount||0), 0);
 
   return (
     <Layout pageTitle="Billing">
       <div className="page-header">
         <div className="page-header-left">
           <h1>Billing & Invoicing</h1>
-          <p>💰 Revenue: ₹{totalRevenue.toLocaleString('en-IN')} collected · ₹{pending.toLocaleString('en-IN')} pending</p>
+          <p>💰 Collected: ₹{totalRevenue.toLocaleString('en-IN')} · Pending: ₹{pending.toLocaleString('en-IN')}</p>
         </div>
         <div style={{ display:'flex', gap:12 }}>
           <div className="search-box"><span className="search-icon"><Search size={15}/></span><input placeholder="Search invoices…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
@@ -93,15 +118,16 @@ export default function BillingPage() {
         : filtered.length===0 ? <div className="empty-state"><div className="empty-state-icon">🧾</div><h3>No invoices found</h3><p>Create the first billing invoice</p></div>
         : (
           <div className="table-wrapper"><table>
-            <thead><tr><th>#</th><th>Patient</th><th>Amount</th><th>Status</th><th>Invoice Date</th><th>Description</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Invoice</th><th>Patient</th><th>Total</th><th>Status</th><th>Date</th><th>Method</th><th>Actions</th></tr></thead>
             <tbody>{filtered.map((b,i) => (
               <tr key={b.id}>
                 <td className="td-muted">{i+1}</td>
-                <td><strong>{b.patient?.firstName} {b.patient?.lastName}</strong></td>
+                <td className="td-muted">{b.invoiceNumber ?? '—'}</td>
+                <td><strong>{b.patientName}</strong></td>
                 <td><strong>₹{Number(b.totalAmount||0).toLocaleString('en-IN')}</strong></td>
                 <td><span className={`badge ${payBadge(b.paymentStatus)}`}>{b.paymentStatus?.replace('_',' ')}</span></td>
-                <td className="td-muted">{b.invoiceDate ? new Date(b.invoiceDate).toLocaleDateString() : '—'}</td>
-                <td className="td-muted truncate" style={{maxWidth:180}}>{b.description||'—'}</td>
+                <td className="td-muted">{b.paymentDate ? new Date(b.paymentDate).toLocaleDateString() : '—'}</td>
+                <td className="td-muted">{b.paymentMethod || '—'}</td>
                 <td><div style={{display:'flex',gap:6}}>
                   <button className="btn btn-secondary btn-sm btn-icon" onClick={()=>openEdit(b)}><Pencil size={14}/></button>
                   <button className="btn btn-danger btn-sm btn-icon" onClick={()=>setConfirm({open:true,id:b.id})}><Trash2 size={14}/></button>
@@ -112,7 +138,7 @@ export default function BillingPage() {
         )}
       </div>
 
-      <Modal isOpen={modal.open} onClose={closeModal} title={modal.mode==='add'?'🧾 New Invoice':'✏️ Edit Invoice'}
+      <Modal isOpen={modal.open} onClose={closeModal} title={modal.mode==='add'?'🧾 New Invoice':'✏️ Edit Invoice'} size="modal-lg"
         footer={<><button className="btn btn-secondary" onClick={closeModal}>Cancel</button><button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>{saving?<><span className="spinner"/>Saving…</>:'Save Invoice'}</button></>}>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Patient *</label>
@@ -121,13 +147,25 @@ export default function BillingPage() {
               {patients.map(p => <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>)}
             </select>
           </div>
-          <div className="form-group"><label className="form-label">Total Amount (₹) *</label><input className="form-control" type="number" name="totalAmount" value={form.totalAmount} onChange={handleChange} placeholder="e.g. 5000"/></div>
+          <div className="form-group"><label className="form-label">Payment Status</label>
+            <select className="form-control" name="paymentStatus" value={form.paymentStatus} onChange={handleChange}>
+              {PAY_STATUSES.map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
+            </select>
+          </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Payment Status</label><select className="form-control" name="paymentStatus" value={form.paymentStatus} onChange={handleChange}>{PAY_STATUSES.map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Invoice Date</label><input className="form-control" type="date" name="invoiceDate" value={form.invoiceDate} onChange={handleChange}/></div>
+          <div className="form-group"><label className="form-label">Consultation Fee (₹)</label><input className="form-control" type="number" name="consultationFee" value={form.consultationFee} onChange={handleChange} placeholder="0"/></div>
+          <div className="form-group"><label className="form-label">Room Charges (₹)</label><input className="form-control" type="number" name="roomCharges" value={form.roomCharges} onChange={handleChange} placeholder="0"/></div>
         </div>
-        <div className="form-group"><label className="form-label">Description</label><textarea className="form-control" name="description" value={form.description} onChange={handleChange} placeholder="Services rendered, treatments, etc." rows={3} style={{resize:'vertical'}}/></div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Medication Charges (₹)</label><input className="form-control" type="number" name="medicationCharges" value={form.medicationCharges} onChange={handleChange} placeholder="0"/></div>
+          <div className="form-group"><label className="form-label">Other Charges (₹)</label><input className="form-control" type="number" name="otherCharges" value={form.otherCharges} onChange={handleChange} placeholder="0"/></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Payment Date</label><input className="form-control" type="date" name="paymentDate" value={form.paymentDate} onChange={handleChange}/></div>
+          <div className="form-group"><label className="form-label">Payment Method</label><input className="form-control" name="paymentMethod" value={form.paymentMethod} onChange={handleChange} placeholder="Cash / Card / UPI"/></div>
+        </div>
+        <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" name="notes" value={form.notes} onChange={handleChange} placeholder="Additional notes…" rows={2} style={{resize:'vertical'}}/></div>
       </Modal>
 
       <Modal isOpen={confirm.open} onClose={()=>setConfirm({open:false,id:null})} title="Delete Invoice"

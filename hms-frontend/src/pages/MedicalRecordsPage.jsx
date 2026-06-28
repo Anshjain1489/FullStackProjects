@@ -7,7 +7,7 @@ import { doctorService }        from '../services/doctorService';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const EMPTY = { patientId:'', doctorId:'', diagnosis:'', prescription:'', notes:'', recordDate:'' };
+const EMPTY = { patientId:'', doctorId:'', diagnosis:'', prescription:'', notes:'', visitDate:'' };
 
 export default function MedicalRecordsPage() {
   const [records, setRecords]   = useState([]);
@@ -42,19 +42,19 @@ export default function MedicalRecordsPage() {
     ));
   }, [search, records]);
 
-  const openAdd  = () => { setForm({ ...EMPTY, recordDate: new Date().toISOString().split('T')[0] }); setModal({ open:true, mode:'add', data:null }); };
+  const openAdd  = () => { setForm({ ...EMPTY, visitDate: new Date().toISOString().split('T')[0] }); setModal({ open:true, mode:'add', data:null }); };
   const openEdit = (r) => {
-    setForm({ patientId: r.patient?.id??'', doctorId: r.doctor?.id??'', diagnosis: r.diagnosis??'', prescription: r.prescription??'', notes: r.notes??'', recordDate: r.recordDate?.split('T')[0]??'' });
+    setForm({ patientId: r.patient?.id??r.patientId??'', doctorId: r.doctor?.id??r.doctorId??'', diagnosis: r.diagnosis??'', prescription: r.prescription??'', notes: r.notes??'', visitDate: r.visitDate?.split('T')[0]??'' });
     setModal({ open:true, mode:'edit', data:r });
   };
   const closeModal = () => setModal({ open:false, mode:'add', data:null });
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async () => {
-    if (!form.patientId || !form.diagnosis) { toast.error('Patient and diagnosis are required'); return; }
+    if (!form.patientId || !form.doctorId || !form.visitDate) { toast.error('Patient, doctor and visit date are required'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, patientId: Number(form.patientId), doctorId: form.doctorId ? Number(form.doctorId) : null };
+      const payload = { patientId: Number(form.patientId), doctorId: Number(form.doctorId), visitDate: form.visitDate, diagnosis: form.diagnosis, prescription: form.prescription, notes: form.notes };
       if (modal.mode==='add') await medicalRecordService.create(payload);
       else await medicalRecordService.update(modal.data.id, payload);
       toast.success(`Record ${modal.mode==='add'?'created':'updated'}!`);
@@ -90,7 +90,7 @@ export default function MedicalRecordsPage() {
                 <td><strong>{r.patient?.firstName} {r.patient?.lastName}</strong></td>
                 <td>{r.doctor ? `Dr. ${r.doctor.firstName} ${r.doctor.lastName}` : '—'}</td>
                 <td>{r.diagnosis}</td>
-                <td className="td-muted">{r.recordDate ? new Date(r.recordDate).toLocaleDateString() : '—'}</td>
+                <td>{r.visitDate ? new Date(r.visitDate).toLocaleDateString() : '—'}</td>
                 <td><div style={{display:'flex',gap:6}}>
                   <button className="btn btn-secondary btn-sm btn-icon" onClick={()=>openEdit(r)}><Pencil size={14}/></button>
                   <button className="btn btn-danger btn-sm btn-icon" onClick={()=>setConfirm({open:true,id:r.id})}><Trash2 size={14}/></button>
@@ -119,7 +119,7 @@ export default function MedicalRecordsPage() {
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Diagnosis *</label><input className="form-control" name="diagnosis" value={form.diagnosis} onChange={handleChange} placeholder="Primary diagnosis"/></div>
-          <div className="form-group"><label className="form-label">Record Date</label><input className="form-control" type="date" name="recordDate" value={form.recordDate} onChange={handleChange}/></div>
+          <div className="form-group"><label className="form-label">Visit Date *</label><input className="form-control" type="date" name="visitDate" value={form.visitDate} onChange={handleChange}/></div>
         </div>
         <div className="form-group"><label className="form-label">Prescription</label><textarea className="form-control" name="prescription" value={form.prescription} onChange={handleChange} placeholder="Medications prescribed…" rows={3} style={{resize:'vertical'}}/></div>
         <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" name="notes" value={form.notes} onChange={handleChange} placeholder="Additional clinical notes…" rows={3} style={{resize:'vertical'}}/></div>

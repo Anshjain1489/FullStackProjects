@@ -8,7 +8,7 @@ import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const STATUSES = ['SCHEDULED','CONFIRMED','COMPLETED','CANCELLED','NO_SHOW'];
-const EMPTY = { patientId:'', doctorId:'', appointmentDate:'', notes:'', status:'SCHEDULED' };
+const EMPTY = { patientId:'', doctorId:'', appointmentDate:'', appointmentTime:'', reason:'', notes:'', status:'SCHEDULED' };
 
 const statusBadge = (s) => {
   const map = { SCHEDULED:'badge-info', CONFIRMED:'badge-primary', COMPLETED:'badge-success', CANCELLED:'badge-danger', NO_SHOW:'badge-warning' };
@@ -45,17 +45,23 @@ export default function AppointmentsPage() {
   useEffect(() => {
     const q = search.toLowerCase();
     setFiltered(apts.filter(a =>
-      `${a.patient?.firstName} ${a.patient?.lastName}`.toLowerCase().includes(q) ||
-      `${a.doctor?.firstName} ${a.doctor?.lastName}`.toLowerCase().includes(q)
+      a.patientName?.toLowerCase().includes(q) ||
+      a.doctorName?.toLowerCase().includes(q)
     ));
   }, [search, apts]);
 
   const openAdd  = () => { setForm(EMPTY); setModal({ open:true, mode:'add', data:null }); };
   const openEdit = (a) => {
+    // appointmentTime is a LocalTime object {hour, minute, second} from backend
+    const timeStr = a.appointmentTime
+      ? `${String(a.appointmentTime.hour).padStart(2,'0')}:${String(a.appointmentTime.minute).padStart(2,'0')}`
+      : '';
     setForm({
-      patientId: a.patient?.id ?? '',
-      doctorId:  a.doctor?.id  ?? '',
-      appointmentDate: a.appointmentDate ? a.appointmentDate.slice(0,16) : '',
+      patientId: a.patientId ?? '',
+      doctorId:  a.doctorId  ?? '',
+      appointmentDate: a.appointmentDate ?? '',
+      appointmentTime: timeStr,
+      reason: a.reason ?? '',
       notes: a.notes ?? '',
       status: a.status ?? 'SCHEDULED'
     });
@@ -64,13 +70,26 @@ export default function AppointmentsPage() {
   const closeModal = () => setModal({ open:false, mode:'add', data:null });
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
+  const buildPayload = () => {
+    const [hour, minute] = (form.appointmentTime || '09:00').split(':').map(Number);
+    return {
+      patientId: Number(form.patientId),
+      doctorId:  Number(form.doctorId),
+      appointmentDate: form.appointmentDate,
+      appointmentTime: { hour, minute, second: 0, nano: 0 },
+      reason: form.reason,
+      notes:  form.notes,
+    };
+  };
+
   const handleSubmit = async () => {
-    if (!form.patientId || !form.doctorId || !form.appointmentDate) { toast.error('Patient, doctor and date are required'); return; }
+    if (!form.patientId || !form.doctorId || !form.appointmentDate || !form.appointmentTime) {
+      toast.error('Patient, doctor, date and time are required'); return;
+    }
     setSaving(true);
     try {
-      const payload = { ...form, patientId: Number(form.patientId), doctorId: Number(form.doctorId) };
-      if (modal.mode==='add') await appointmentService.create(payload);
-      else await appointmentService.update(modal.data.id, payload);
+      if (modal.mode==='add') await appointmentService.create(buildPayload());
+      else await appointmentService.update(modal.data.id, buildPayload());
       toast.success(`Appointment ${modal.mode==='add'?'scheduled':'updated'}!`);
       closeModal(); load();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to save'); }
@@ -97,21 +116,25 @@ export default function AppointmentsPage() {
         : filtered.length===0 ? <div className="empty-state"><div className="empty-state-icon">📅</div><h3>No appointments found</h3><p>Schedule a new appointment</p></div>
         : (
           <div className="table-wrapper"><table>
-            <thead><tr><th>#</th><th>Patient</th><th>Doctor</th><th>Date & Time</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
-            <tbody>{filtered.map((a,i) => (
+            <thead><tr><th>#</th><th>Patient</th><th>Doctor</th><th>Date</th><th>Time</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead>
+            <tbody>{filtered.map((a,i) => {
+              const timeObj = a.appointmentTime;
+              const timeStr = timeObj ? `${String(timeObj.hour).padStart(2,'0')}:${String(timeObj.minute).padStart(2,'0')}` : '—';
+              return (
               <tr key={a.id}>
                 <td className="td-muted">{i+1}</td>
-                <td><strong>{a.patient?.firstName} {a.patient?.lastName}</strong></td>
-                <td>Dr. {a.doctor?.firstName} {a.doctor?.lastName}</td>
-                <td className="td-muted">{a.appointmentDate ? new Date(a.appointmentDate).toLocaleString() : '—'}</td>
+                <td><strong>{a.patientName}</strong></td>
+                <td>{a.doctorName ? `Dr. ${a.doctorName}` : '—'}</td>
+                <td className="td-muted">{a.appointmentDate ?? '—'}</td>
+                <td className="td-muted">{timeStr}</td>
                 <td><span className={`badge ${statusBadge(a.status)}`}>{a.status}</span></td>
-                <td className="td-muted truncate" style={{maxWidth:150}}>{a.notes||'—'}</td>
+                <td className="td-muted truncate" style={{maxWidth:140}}>{a.reason||'—'}</td>
                 <td><div style={{display:'flex',gap:6}}>
                   <button className="btn btn-secondary btn-sm btn-icon" onClick={()=>openEdit(a)}><Pencil size={14}/></button>
                   <button className="btn btn-danger btn-sm btn-icon" onClick={()=>setConfirm({open:true,id:a.id})}><Trash2 size={14}/></button>
                 </div></td>
-              </tr>
-            ))}</tbody>
+              </tr>);
+            })}</tbody>
           </table></div>
         )}
       </div>
@@ -133,14 +156,11 @@ export default function AppointmentsPage() {
           </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Date & Time *</label><input className="form-control" type="datetime-local" name="appointmentDate" value={form.appointmentDate} onChange={handleChange}/></div>
-          <div className="form-group"><label className="form-label">Status</label>
-            <select className="form-control" name="status" value={form.status} onChange={handleChange}>
-              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
+          <div className="form-group"><label className="form-label">Date *</label><input className="form-control" type="date" name="appointmentDate" value={form.appointmentDate} onChange={handleChange}/></div>
+          <div className="form-group"><label className="form-label">Time *</label><input className="form-control" type="time" name="appointmentTime" value={form.appointmentTime} onChange={handleChange}/></div>
         </div>
-        <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" name="notes" value={form.notes} onChange={handleChange} placeholder="Reason for visit…" rows={3} style={{resize:'vertical'}}/></div>
+        <div className="form-group"><label className="form-label">Reason for Visit</label><input className="form-control" name="reason" value={form.reason} onChange={handleChange} placeholder="e.g. Regular checkup"/></div>
+        <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" name="notes" value={form.notes} onChange={handleChange} placeholder="Additional notes…" rows={2} style={{resize:'vertical'}}/></div>
       </Modal>
 
       <Modal isOpen={confirm.open} onClose={()=>setConfirm({open:false,id:null})} title="Delete Appointment"
