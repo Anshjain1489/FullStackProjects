@@ -36,7 +36,7 @@ public class PaymentController {
         if (isVerified) {
             return ResponseEntity.ok(ApiResponse.success("Payment verified and updated successfully", true));
         } else {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Payment verification failed", false));
+            return ResponseEntity.badRequest().body(ApiResponse.error("Payment verification failed"));
         }
     }
 }
