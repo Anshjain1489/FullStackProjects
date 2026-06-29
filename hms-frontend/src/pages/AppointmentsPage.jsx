@@ -71,12 +71,13 @@ export default function AppointmentsPage() {
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const buildPayload = () => {
-    const [hour, minute] = (form.appointmentTime || '09:00').split(':').map(Number);
+    // form.appointmentTime is 'HH:mm' from the input, we append ':00' to make it 'HH:mm:ss'
+    const timeStr = form.appointmentTime ? `${form.appointmentTime}:00` : '09:00:00';
     return {
       patientId: Number(form.patientId),
       doctorId:  Number(form.doctorId),
       appointmentDate: form.appointmentDate,
-      appointmentTime: { hour, minute, second: 0, nano: 0 },
+      appointmentTime: timeStr,
       reason: form.reason,
       notes:  form.notes,
     };
