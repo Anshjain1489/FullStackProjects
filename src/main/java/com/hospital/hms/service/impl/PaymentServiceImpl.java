@@ -48,7 +48,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    @Transactional
     public PaymentOrderResponse createPaymentOrder(Long billingId) {
         log.info("Initiating payment order creation for Billing ID: {}", billingId);
         
@@ -110,7 +109,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    @Transactional
     public boolean verifyPaymentSignature(PaymentVerifyRequest request) {
         log.info("Verifying payment signature for Billing ID: {}", request.getBillingId());
         try {
