@@ -17,10 +17,10 @@ const loadRazorpayScript = () => {
 
 export const paymentService = {
   // 1. Generate Razorpay Order
-  createOrder: (billingId) => api.post(`/billing/${billingId}/payment-order`),
+  createOrder: (billingId) => api.post(`/api/billing/${billingId}/payment-order`),
 
   // 2. Verify Razorpay Payment Signature
-  verifyPayment: (payload) => api.post('/billing/payment-verify', payload),
+  verifyPayment: (payload) => api.post('/api/billing/payment-verify', payload),
 
   // 3. Initiate checkout workflow
   checkout: async (billingId, onSuccess, onFailure) => {
