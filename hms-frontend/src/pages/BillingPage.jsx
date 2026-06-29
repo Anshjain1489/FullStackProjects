@@ -3,8 +3,9 @@ import Layout from '../components/Layout';
 import Modal  from '../components/Modal';
 import { billingService } from '../services/billingService';
 import { patientService } from '../services/patientService';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { paymentService } from '../services/paymentService';
 
 const PAY_STATUSES = ['PENDING','PAID','PARTIAL','OVERDUE','CANCELLED','REFUNDED'];
 const EMPTY = {
@@ -28,6 +29,7 @@ export default function BillingPage() {
   const [modal, setModal]       = useState({ open:false, mode:'add', data:null });
   const [confirm, setConfirm]   = useState({ open:false, id:null });
   const [saving, setSaving]     = useState(false);
+  const [payingId, setPayingId] = useState(null);
   const [form, setForm]         = useState(EMPTY);
 
   const load = useCallback(async () => {
@@ -97,6 +99,27 @@ export default function BillingPage() {
     catch { toast.error('Failed to delete invoice'); }
   };
 
+  const handlePayment = async (billId) => {
+    setPayingId(billId);
+    try {
+      await paymentService.checkout(
+        billId,
+        (verifyData) => {
+          toast.success('🎉 Payment successful! Invoice updated.');
+          load();
+          setPayingId(null);
+        },
+        (errMsg) => {
+          toast.error(errMsg || 'Payment failed.');
+          setPayingId(null);
+        }
+      );
+    } catch (err) {
+      toast.error('Could not initiate payment.');
+      setPayingId(null);
+    }
+  };
+
   const totalRevenue = bills.filter(b => b.paymentStatus==='PAID').reduce((s,b) => s+(b.totalAmount||0), 0);
   const pending = bills.filter(b => b.paymentStatus==='PENDING' || b.paymentStatus==='OVERDUE').reduce((s,b) => s+(b.totalAmount||0), 0);
 
@@ -128,7 +151,18 @@ export default function BillingPage() {
                 <td><span className={`badge ${payBadge(b.paymentStatus)}`}>{b.paymentStatus?.replace('_',' ')}</span></td>
                 <td className="td-muted">{b.paymentDate ? new Date(b.paymentDate).toLocaleDateString() : '—'}</td>
                 <td className="td-muted">{b.paymentMethod || '—'}</td>
-                <td><div style={{display:'flex',gap:6}}>
+                <td><div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  {(b.paymentStatus === 'PENDING' || b.paymentStatus === 'PARTIAL' || b.paymentStatus === 'OVERDUE') && (
+                    <button 
+                      className="btn btn-primary btn-sm btn-icon" 
+                      onClick={() => handlePayment(b.id)} 
+                      disabled={payingId === b.id}
+                      title="Pay with Razorpay"
+                      style={{ background: '#10b981', borderColor: '#10b981' }}
+                    >
+                      {payingId === b.id ? <div className="spinner" style={{width:14,height:14}}/> : <CreditCard size={14}/>}
+                    </button>
+                  )}
                   <button className="btn btn-secondary btn-sm btn-icon" onClick={()=>openEdit(b)}><Pencil size={14}/></button>
                   <button className="btn btn-danger btn-sm btn-icon" onClick={()=>setConfirm({open:true,id:b.id})}><Trash2 size={14}/></button>
                 </div></td>
