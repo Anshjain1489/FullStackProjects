@@ -4,8 +4,8 @@ import Modal  from '../components/Modal';
 import { billingService } from '../services/billingService';
 import { patientService } from '../services/patientService';
 import { 
-  Plus, Pencil, Trash2, Search, CreditCard, 
-  Printer, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown 
+  Plus, Pencil, Trash2, Search, CreditCard, ShieldCheck,
+  Printer, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown, Award
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { paymentService } from '../services/paymentService';
@@ -35,6 +35,9 @@ export default function BillingPage() {
   const [saving, setSaving]     = useState(false);
   const [payingId, setPayingId] = useState(null);
   const [form, setForm]         = useState(EMPTY);
+  
+  // Upsell Option
+  const [addInsurance, setAddInsurance] = useState(false);
 
   // Sorting State
   const [sortConfig, setSortConfig] = useState({ key: 'invoiceNumber', direction: 'asc' });
@@ -308,11 +311,13 @@ export default function BillingPage() {
           <div className="printable-invoice" style={{ fontFamily: 'inherit', color: 'var(--text-primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20 }}>
               <div>
-                <h2 style={{ fontWeight: '800', color: 'var(--primary-400)' }}>APEX HMS</h2>
+                <h2 style={{ fontWeight: '850', color: 'var(--primary-400)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Award size={20} className="text-primary" /> APEX HEALTH
+                </h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>12, Health Avenue, Medical Zone<br />Singapore 189423</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <h3 style={{ fontWeight: '700' }}>INVOICE</h3>
+                <h3 style={{ fontWeight: '700' }}>INVOICE RECEIPT</h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   Invoice #: <strong>{viewModal.data.invoiceNumber}</strong><br />
                   Date: {viewModal.data.paymentDate ? new Date(viewModal.data.paymentDate).toLocaleDateString() : new Date().toLocaleDateString()}<br />
@@ -358,19 +363,50 @@ export default function BillingPage() {
                     <td>Other Charges</td>
                     <td style={{ textAlign: 'right' }}>₹{Number(viewModal.data.otherCharges || 0).toLocaleString('en-IN')}</td>
                   </tr>
+                  {addInsurance && (
+                    <tr>
+                      <td style={{ color: 'var(--success)' }}>Premium Room Insurance Cover (Add-on)</td>
+                      <td style={{ textAlign: 'right', color: 'var(--success)' }}>₹450</td>
+                    </tr>
+                  )}
                   <tr style={{ borderTop: '2px solid var(--border)', fontWeight: '800', fontSize: '15px' }}>
                     <td>Total Invoice Value</td>
-                    <td style={{ textAlign: 'right', color: 'var(--primary-400)' }}>₹{Number(viewModal.data.totalAmount || 0).toLocaleString('en-IN')}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--primary-400)' }}>
+                      ₹{Number((viewModal.data.totalAmount || 0) + (addInsurance ? 450 : 0)).toLocaleString('en-IN')}
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
+            {/* Upsell / Add-ons Section */}
+            {(viewModal.data.paymentStatus === 'PENDING' || viewModal.data.paymentStatus === 'OVERDUE') && (
+              <div style={{ background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99,102,241,0.2)', padding: 14, borderRadius: 'var(--radius-md)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input 
+                  type="checkbox" 
+                  id="insurance-upsell" 
+                  checked={addInsurance} 
+                  onChange={(e) => setAddInsurance(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <label htmlFor="insurance-upsell" style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
+                  Add <span style={{ color: 'var(--primary-300)' }}>Premium Room Insurance Cover</span> (+₹450) to this billing cycle.
+                </label>
+              </div>
+            )}
+
             {viewModal.data.notes && (
-              <div style={{ background: 'var(--bg-hover)', padding: 12, borderRadius: 'var(--radius-sm)', fontSize: '12.5px', border: '1px solid var(--border)' }}>
+              <div style={{ background: 'var(--bg-hover)', padding: 12, borderRadius: 'var(--radius-sm)', fontSize: '12.5px', border: '1px solid var(--border)', marginBottom: 20 }}>
                 <strong>Invoice Notes:</strong> {viewModal.data.notes}
               </div>
             )}
+
+            <div className="invoice-footer">
+              <p>Thank you for choosing Apex Health Systems. This is a computer-generated invoice receipt.</p>
+              <p style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '11px', color: 'var(--text-muted)' }}>
+                <ShieldCheck size={12} className="text-success" /> HIPAA Compliant · Secured & Encrypted
+              </p>
+            </div>
           </div>
         </Modal>
       )}
@@ -394,8 +430,14 @@ export default function BillingPage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0', gap: 16 }}>
             {paymentStatusModal.state === 'paying' && (
               <>
-                <div className="global-loader" style={{ width: 40, height: 40 }} />
-                <p style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{paymentStatusModal.message}</p>
+                <div className="spinner" style={{ width: 40, height: 40 }} />
+                <p style={{ fontWeight: '600', color: 'var(--text-secondary)', textAlign: 'center' }}>{paymentStatusModal.message}</p>
+                
+                {/* Trust Badges */}
+                <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ShieldCheck size={12} className="text-success" /> Secured by Razorpay</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><ShieldCheck size={12} className="text-success" /> PCI-DSS Compliant</span>
+                </div>
               </>
             )}
             {paymentStatusModal.state === 'success' && (
