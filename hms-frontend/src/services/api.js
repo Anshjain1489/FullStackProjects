@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -23,9 +24,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('hms_token');
-      localStorage.removeItem('hms_user');
-      window.location.href = '/login';
+      const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register';
+      if (!isAuthPage) {
+        localStorage.removeItem('hms_token');
+        localStorage.removeItem('hms_user');
+        toast.error('Session expired. Please log in again.');
+        // Brief delay so the user can see the toast before redirecting
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
+      }
     }
     return Promise.reject(error);
   }

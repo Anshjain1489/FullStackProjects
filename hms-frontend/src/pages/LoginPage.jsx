@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Hospital } from 'lucide-react';
+import { Eye, EyeOff, Hospital, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -13,19 +13,27 @@ export default function LoginPage() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState('');
 
   const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-    setError('');
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+    setApiError('');
+    if (errors[name]) setErrors(errs => ({ ...errs, [name]: '' }));
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!form.username.trim()) newErrors.username = 'Username is required';
+    if (!form.password.trim()) newErrors.password = 'Password is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.username || !form.password) {
-      setError('Please fill in all fields.');
-      return;
-    }
+    if (!validateForm()) { toast.error('Please fill in all fields'); return; }
     setLoading(true);
     try {
       await login(form);
@@ -33,7 +41,7 @@ export default function LoginPage() {
       navigate(from, { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || 'Invalid credentials. Please try again.';
-      setError(msg);
+      setApiError(msg);
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -42,20 +50,28 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
+      <div className="auth-card glass-panel" style={{ background: 'rgba(15, 23, 42, 0.45)' }}>
         <div className="auth-logo">
           <div className="auth-logo-icon"><Hospital size={26} color="#fff" /></div>
         </div>
-        <h1 className="auth-title">Welcome back</h1>
+        <h1 className="auth-title">Welcome Back</h1>
         <p className="auth-sub">Sign in to Apex Hospital Management System</p>
 
-        {error && (
+        {apiError && (
           <div style={{
-            background: 'var(--danger-bg)', border: '1px solid rgba(239,68,68,.3)',
-            color: 'var(--danger)', borderRadius: 'var(--radius-md)',
-            padding: '10px 14px', fontSize: '13px', marginBottom: '8px'
+            background: 'var(--danger-bg)', 
+            border: '1px solid var(--danger-border)',
+            color: 'var(--danger)', 
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 14px', 
+            fontSize: '13px', 
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            {error}
+            <AlertCircle size={16} />
+            <span>{apiError}</span>
           </div>
         )}
 
@@ -64,7 +80,7 @@ export default function LoginPage() {
             <label className="form-label" htmlFor="login-username">Username</label>
             <input
               id="login-username"
-              className="form-control"
+              className={`form-control ${errors.username ? 'is-invalid' : ''}`}
               type="text"
               name="username"
               placeholder="Enter your username"
@@ -73,6 +89,7 @@ export default function LoginPage() {
               autoComplete="username"
               autoFocus
             />
+            {errors.username && <span className="form-error">{errors.username}</span>}
           </div>
 
           <div className="form-group">
@@ -80,7 +97,7 @@ export default function LoginPage() {
             <div className="password-toggle">
               <input
                 id="login-password"
-                className="form-control"
+                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
                 type={showPwd ? 'text' : 'password'}
                 name="password"
                 placeholder="Enter your password"
@@ -97,6 +114,7 @@ export default function LoginPage() {
                 {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {errors.password && <span className="form-error">{errors.password}</span>}
           </div>
 
           <button
